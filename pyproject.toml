@@ -1,0 +1,30 @@
+[project]
+name = "spider-ml-task-2"
+version = "0.1.0"
+description = "Just task 2 for Spider ML"
+authors = [
+    {name = "Shreeya Sinha",email = "shreeyasinha27@gmail.com"}
+]
+requires-python = ">=3.13,<3.15,!=3.14.1"
+dependencies = [
+    "torch (>=2.12.0,<3.0.0)",
+    "numpy (>=2.4.6,<3.0.0)",
+    "matplotlib (>=3.11.0,<4.0.0)",
+    "pandas (>=3.0.3,<4.0.0)",
+    "torchvision (>=0.27.1,<0.28.0)",
+    "scikit-learn (>=1.9.0,<2.0.0)",
+    "streamlit (>=1.58.0,<2.0.0)",
+    "google-genai (>=2.9.0,<3.0.0)",
+    "langchain (>=1.3.10,<2.0.0)",
+    "langchain-community (>=0.4.2,<0.5.0)",
+    "langchain-huggingface (>=1.2.2,<2.0.0)",
+    "faiss-cpu (>=1.14.3,<2.0.0)",
+    "sentence-transformers (>=5.6.0,<6.0.0)",
+    "pymupdf (>=1.27.2.3,<2.0.0.0)",
+    "python-dotenv (>=1.2.2,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
