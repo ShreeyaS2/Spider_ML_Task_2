@@ -1,14 +1,12 @@
-# Weather Forecasting — LSTM vs Transformer Comparison
+# Weather Forecasting - LSTM vs Transformer Comparison
  
 A from-scratch implementation and comparative study of an LSTM and Transformer for 12-hour temperature forecasting on the Jena Climate Dataset.
  
----
  
 ## Task Overview
  
 Both models are trained to forecast the next **12 hours of temperature** given the previous **72 hours of weather observations** (14 features, hourly resolution after downsampling every 6 timesteps).
  
----
  
 ## Dataset
  
@@ -24,7 +22,7 @@ Both models are trained to forecast the next **12 hours of temperature** given t
 **Windowing:**
 - Input: 72 consecutive hourly observations (all 14 features)
 - Target: next 12 hours of temperature only (column index 1)
----
+  
  
 ## Architecture
  
@@ -70,7 +68,7 @@ This is an encoder-only Transformer using self-attention, implemented from scrat
 - Sinusoidal positional encoding injected after input projection
 - Input projection: `nn.Linear(input_size, d_model)` to project 14 continuous features into model dimension
  
-**Output:** mean pooling across all 72 timestep representations → linear projection to 12 predictions.
+**Output:** taking the last timestep from all 72 timestep representations → linear projection to 12 predictions.
  
 | Hyperparameter | Value |
 |---|---|
@@ -82,7 +80,6 @@ This is an encoder-only Transformer using self-attention, implemented from scrat
 | Input steps | 72 |
 | Output steps | 12 |
  
----
  
 ## Training Setup
  
@@ -103,7 +100,6 @@ Both models trained under identical conditions for a fair comparison:
 The transformer uses a lower learning rate than the LSTM since transformer training is more sensitive to large initial learning rates. Weight decay was increased to `5e-4` from `1e-4` because the downsampled hourly dataset is smaller than the original 10-minute dataset (~126,000 windows), creating a higher overfitting risk for both architectures.
 Also, multiple combinations were tested to see which gave the most accuracy. It was seen that a warmup helped improve prediction. The hidden_size was also kept as 64 to match with the LSTM and also because a bigger value would have caused excessive expansion and compression for a smaller portion of the dataset. The warmup was also tested for both a weight decay of 1e-3 and 5e-4, and it supported 5e-4.
  
----
  
 ## Results
  
@@ -120,7 +116,6 @@ The LSTM outperforms the Transformer across every metric on this task.
 
 As a note, the 720/24 input window was also tried.
  
----
  
 ## Analysis
  
@@ -128,27 +123,22 @@ As a note, the 720/24 input window was also tried.
  
 Attention computes a direct, learned weighted connection between any two positions in a sequence due to parallel computation. In an LSTM, information from early timesteps must propagate through every intermediate hidden state to influence later ones — each step applies sigmoid and tanh gates that mitigate vanishing gradients. Attention sidesteps this by letting any timestep directly attend to any other, regardless of distance, with no intermediate decay.
 
-
 ### Why LSTM outperforms Transformer here
  
-At `input_steps=72`, the LSTM's built-in inductive bias (recency, sequential locality) aligns well with the structure of hourly weather data with short-range dependencies, and the LSTM's sequential hidden state naturally encodes this without needing to learn it from data. The Transformer has to learn these relationships entirely through attention weights, which requires more training data and longer sequences for its flexibility to pay off.
+At `input_steps=72`, the LSTM's built-in inductive bias (recency, sequential locality) aligns well with the structure of hourly weather data with short-range dependencies, and the LSTM's sequential hidden state naturally encodes this without needing to learn it from data. The Transformer has to learn these relationships entirely through attention weights, which requires more training data and longer sequences with large-range values for its flexibility to pay off.
  
-At `input_steps=720`, the attention matrix grows to 720×720 per head, consuming substantially more memory and computation, making the LSTM computationally more practical at longer sequence lengths that have short-range dependencies. Despite parallelised processing, the attention cost can exceed the benefit of parallelism at long sequences, where the LSTM's linear scaling per step becomes advantageous.
- 
-gh examples and training data to learn relationships from scratch
-- When training speed matters, as parallel computation means faster predictions.
-
+At `input_steps=720`, the attention matrix grows to 720×720 per head, consuming substantially more memory and computation, making the LSTM computationally more practical at longer sequence lengths that have short-range dependencies. Despite parallelised processing, the attention cost can exceed the benefit of parallelism at long sequences for short-range dependencies, where the LSTM's linear scaling per step becomes advantageous.
 
 ### Training stability
  
-The LSTM trained more stably from epoch 1, with smooth loss curves and close train/val tracking throughout. The Transformer showed a higher initial loss (0.51 vs 0.19 at epoch 1) and slightly more validation noise in early epochs — characteristic of attention-based models without a warmup phase, where randomly initialised attention weights interact poorly with a fixed learning rate early in training. Gradient clipping (`max_norm=1.0`) was applied to both models to guard against gradient spikes, which is particularly important for the LSTM, where backpropagation through 72 sequential timesteps accumulates gradients multiplicatively across the recurrent chain.
+The LSTM trained more stably from epoch 1, with smooth loss curves and close train/val tracking throughout. The Transformer showed a higher initial loss and slightly more validation noise in early epochs. Gradient clipping (`max_norm=1.0`) was applied to both models to guard against gradient spikes, which is particularly important for the LSTM, where backpropagation through 72 sequential timesteps accumulates gradients multiplicatively across the chain.
  
 ### Forecasting challenges
  
 - Temperature extremes (very cold or very hot days) are rare in training data; both models showed more scattered plots at the very extremes, with the transformer predictions scattering more than the LSTM.
 - Not all features are integer values such as date-time, so before processing the dataset, this column had to be omitted, as dividing by std during normalisation would cause an error. Due to this, any value of std becoming 0 is also changed to 1.
-- Normalising all 14 features to comparable scales is critical — without normalisation, features with large absolute values (e.g. pressure ~1000 mbar) would dominate the loss and prevent other features from contributing meaningfully to predictions
----
+- Normalising all 14 features to comparable scales is critical; without normalisation, features with large absolute values (e.g. pressure ~1000 mbar) would dominate the loss and prevent other features from contributing meaningfully to predictions
+  
  
 ## Files
  
