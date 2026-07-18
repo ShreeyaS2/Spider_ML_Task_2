@@ -12,16 +12,18 @@ torch.manual_seed(SEED)
 np.random.seed(SEED)
 
 LR= 1e-3 # Adam learning rate
-WEIGHT_DECAY  = 1e-4  # L2 regularisation coefficient
+WEIGHT_DECAY  = 5e-4  # L2 regularisation coefficient
 input_steps= 72
 output_steps=12
 input_size=14
-hidden_size=128
+hidden_size=64 #less hidden size for lesser dataset size
 target_index= 1
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-data=pd.read_csv(r"C:\Personal\comp_proj\spider_ml_task_2\jena_climate_dataset.csv")
+data=pd.read_csv('/content/jena_climate_dataset.csv')
 data = data.drop(columns=["Date Time"])
+data = data.reset_index(drop=True)      
+data= data.groupby(data.index//6).mean()
 data = data.astype(np.float32)
 data=data.to_numpy()
 data=np.array(data)
@@ -32,7 +34,7 @@ std= data.std(axis=0)
 std[std==0]=1
 data= (data-mean)/std
 
-train_data= data[:int(len(data)*0.3)]
+train_data= data[:int(len(data)*0.8)]
 val_data= data[int(len(data)*0.8):]
 
 class JenaClimateForecastDataset(Dataset):
@@ -47,7 +49,6 @@ class JenaClimateForecastDataset(Dataset):
         self.target_index = target_index
 
     def __len__(self):
-        # Subtract total window size to prevent out-of-bounds slicing
         return len(self.data) -self.input_steps - self.output_steps + 1
 
     def __getitem__(self, i):
@@ -76,7 +77,7 @@ class TempPrediction(nn.Module):
         super().__init__()
         self.hidden_size = hidden_size
         self.output_steps = output_steps
-        self.dropout= nn.Dropout(0.2)
+        self.dropout= nn.Dropout(0.3)
 
         limit1= np.sqrt(6 /(input_size + hidden_size))
         limit2= np.sqrt(6/(2*hidden_size))
@@ -84,7 +85,7 @@ class TempPrediction(nn.Module):
         self.W1 = nn.Parameter(torch.FloatTensor(4*hidden_size, input_size+hidden_size).uniform_(-limit1, limit1))
         self.W2 = nn.Parameter(torch.FloatTensor(4*hidden_size, 2*hidden_size).uniform_(-limit2, limit2))
         self.b1= nn.Parameter(torch.cat([
-            torch.ones(hidden_size, 1),    # forget bias = 1
+            torch.ones(hidden_size, 1),    
             torch.zeros(hidden_size, 1),
             torch.zeros(hidden_size, 1),
             torch.zeros(hidden_size, 1)
@@ -101,7 +102,6 @@ class TempPrediction(nn.Module):
         self.out = nn.Linear(hidden_size, output_steps)
 
     def forward(self, x):
-        # x shape: (batch, seq_len, input_size)
         batch_size = x.size(0)
         h1 = torch.zeros(batch_size, self.hidden_size, 1).to(x.device)
         c1 = torch.zeros(batch_size, self.hidden_size, 1).to(x.device)
@@ -109,12 +109,12 @@ class TempPrediction(nn.Module):
         c2 = torch.zeros(batch_size, self.hidden_size, 1).to(x.device)
 
         for t in range(x.size(1)):
-            x_t1 = x[:, t, :].unsqueeze(2)          # (batch, input_size, 1)
-            xh1= torch.cat([x_t1, h1], dim=1)        # (batch, input_size+hidden_size, 1)
+            x_t1 = x[:, t, :].unsqueeze(2)         
+            xh1= torch.cat([x_t1, h1], dim=1)       
 
-            gates1 = self.W1 @ xh1 + self.b1          # ONE matmul instead of 4
+            gates1 = self.W1 @ xh1 + self.b1          
             f_t1, i_t1, cand1, o_t1 = gates1.chunk(4, dim=1)
-            f_t1= torch.sigmoid(f_t1) #matrix multiplication
+            f_t1= torch.sigmoid(f_t1)
             i_t1= torch.sigmoid(i_t1)
             cand1 = torch.tanh(cand1)
             o_t1= torch.sigmoid(o_t1)
@@ -123,11 +123,11 @@ class TempPrediction(nn.Module):
             h1 =o_t1*torch.tanh(c1)
             h1= self.dropout(h1)
 
-            xh2= torch.cat([h1, h2], dim=1)        # (batch, input_size+hidden_size, 1)
+            xh2= torch.cat([h1, h2], dim=1)        
 
-            gates2 = self.W2 @xh2 + self.b2         # ONE matmul instead of 4
+            gates2 = self.W2 @xh2 + self.b2         
             f_t2, i_t2, cand2, o_t2 = gates2.chunk(4, dim=1)
-            f_t2= torch.sigmoid(f_t2) #matrix multiplication
+            f_t2= torch.sigmoid(f_t2) 
             i_t2= torch.sigmoid(i_t2)
             cand2 = torch.tanh(cand2)
             o_t2= torch.sigmoid(o_t2)
@@ -135,11 +135,10 @@ class TempPrediction(nn.Module):
             c2= f_t2* c2 + i_t2 * cand2
             h2 =o_t2*torch.tanh(c2)
 
-        # h shape: (batch, hidden_size, 1) → squeeze → (batch, hidden_size)
+    
         return self.out(h2.squeeze(2))             # (batch, output_steps)
 
 def train(model, loader, criterion, optimizer, device):
-    """Run one full pass over the training set; return avg loss & accuracy."""
     model.train()
     total_loss,total = 0.0, 0
 
@@ -242,13 +241,17 @@ with torch.no_grad():
         all_targets.append(output_batch.cpu().numpy())
 
 # stack all batches together
-all_preds = np.concatenate(all_preds, axis=0)    # (num_windows, 12)
-all_targets = np.concatenate(all_targets, axis=0)  # (num_windows, 12)
+all_preds = np.concatenate(all_preds, axis=0)    
+all_targets = np.concatenate(all_targets, axis=0)  
 
 temp_mean= mean[target_index]
 temp_std= std[target_index]
-all_preds= all_preds*temp_std+temp_mean #denormalise back to celsius
+all_preds= all_preds*temp_std+temp_mean 
 all_targets= all_targets*temp_std+temp_mean
+
+
+flat_preds= all_preds.flatten()
+flat_targets = all_targets.flatten()
 
 def mae_loss(pred, true):
     return np.mean(np.abs(pred - true))
