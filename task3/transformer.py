@@ -12,7 +12,7 @@ torch.manual_seed(SEED)
 np.random.seed(SEED)
 
 LR= 5e-4 # Adam learning rate
-WEIGHT_DECAY  = 5e-4  # L2 regularisation coefficient
+WEIGHT_DECAY  = 5e-4 # L2 regularisation coefficient
 input_steps= 72
 output_steps=12
 heads= 4
@@ -25,7 +25,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 data=pd.read_csv('/content/jena_climate_dataset.csv')
 data = data.drop(columns=["Date Time"])
-data = data.reset_index(drop=True)          # ensure index starts at 0
+data = data.reset_index(drop=True)  # ensure index starts at 0
 data= data.groupby(data.index//6).mean()
 data = data.astype(np.float32)
 data=data.to_numpy()
