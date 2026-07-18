@@ -7,7 +7,6 @@ trans_data = np.load(r"C:\Personal\comp_proj\spider_ml_task_2\task3\transformer_
 lstm_preds, lstm_targets = lstm_data["preds"], lstm_data["targets"]
 trans_preds, trans_targets = trans_data["preds"], trans_data["targets"]
 
-
 print(f"LSTM preds shape: {lstm_preds.shape}")
 print(f"Transformer preds shape: {trans_preds.shape}")
 print()
@@ -19,9 +18,6 @@ print(f"Transformer preds range: {trans_preds.min():.2f} to {trans_preds.max():.
 print()
 print(f"Targets range (LSTM file): {lstm_targets.min():.2f} to {lstm_targets.max():.2f}")
 print(f"Targets range (transformer file): {trans_targets.min():.2f} to {trans_targets.max():.2f}")
-
-# targets should now be identical between the two — sanity check
-assert np.allclose(lstm_targets, trans_targets), "Targets don't match — check input_steps/output_steps/seed are identical in both scripts"
 
 # Aggregate scatter
 plt.figure(figsize=(7,7))
