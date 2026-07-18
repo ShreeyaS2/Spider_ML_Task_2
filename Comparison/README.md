@@ -10,7 +10,7 @@ Both models are trained to forecast the next **12 hours of temperature** given t
  
 ## Dataset
  
-**Jena Climate Dataset** — meteorological readings from a weather station in Jena, Germany, originally recorded at 10-minute intervals. Downsampled to hourly by averaging every 6 consecutive rows.
+**Jena Climate Dataset** - meteorological readings from a weather station in Jena, Germany, originally recorded at 10-minute intervals. Downsampled to hourly by averaging every 6 consecutive rows.
  
 **Features (14 total):** T (degC), p (mbar), Tpot (K), Tdew (degC), rh (%), VPmax (mbar), VPact (mbar), VPdef (mbar), sh (g/kg), H2OC (mmol/mol), rho (g/m³), wv (m/s), max. wv (m/s), wd (deg)
  
