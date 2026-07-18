@@ -122,7 +122,7 @@ def rerank(query, docs_with_scores):
     pairs = [(query, d.page_content) for d in docs]
     rerank_scores = reranker.predict(pairs)
 
-    ranked = sorted(zip(rerank_scores, docs), reverse=True)
+    ranked = sorted(zip(rerank_scores.tolist(), docs), key=lambda x: x[0],reverse=True)
     return [(rerank_scores, doc) for rerank_scores, doc in ranked[:3]]
 
 
@@ -163,10 +163,9 @@ def evaluate_retrieval(reranked_docs):
 def get_nli_model():
     return pipeline(
         "text-classification",
-        model="cross-encoder/nli-deberta-v3-small",
+        model="cross-encoder/nli-MiniLM2-L6-H768",
         top_k=None
     )
-
 
 def evaluate_hallucination(answer, reranked_docs):
     nli = get_nli_model()
@@ -190,7 +189,7 @@ def evaluate_hallucination(answer, reranked_docs):
     max_score = max(entailment_scores)
     avg_score = np.mean(entailment_scores)
 
-    label = "entailment" if max_score > 0.4 else "neutral" if max_score > 0.2 else "contradiction"
+    label = "entailment" if max_score > 0.7 else "neutral" if max_score > 0.4 else "contradiction"
 
     return {
         "label": label,
@@ -242,7 +241,7 @@ def generate_answer(query, reranked_docs, confidence):
 
 def run():
     st.title("Healthcare Information Assistant")
-    st.write("An intelligent chatbot retrieving information from MedQuAD and trusted medical guidelines.")
+    st.write("A chatbot retrieving information from MedQuAD and trusted medical guidelines to give grounded and reasoned answers on medical queries.")
 
     os.makedirs(FAISS_DIR, exist_ok=True)
 
